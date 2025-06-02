@@ -14,10 +14,6 @@ export interface Event {
   location: string;
   date: Date;
   attendees: string[];
-  eventPosterImage?: {
-    name: string;
-    url: string;
-  };
   organizer: User;
   createdAt: Date;
   updatedAt: Date;
@@ -67,5 +63,4 @@ export interface CreateEventData {
   title: string;
   location: string;
   date: string;
-  image?: FileList;
 }

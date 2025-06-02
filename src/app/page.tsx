@@ -47,60 +47,164 @@ export default function HomePage() {
         );
       }
 
+      console.log("Loading events...");
       const query = new Parse.Query("Event");
       query.include("organizer");
       query.descending("createdAt");
 
       const results = await query.find();
-      const eventData = results.map((event) => ({
-        objectId: event.id || "",
-        title: event.get("title"),
-        location: event.get("location"),
-        date: event.get("date"),
-        attendees: event.get("attendees") || [],
-        eventPosterImage: event.get("eventPosterImage"),
-        organizer: {
-          objectId: event.get("organizer")?.id || "",
-          username: event.get("organizer")?.get("username"),
-          email: event.get("organizer")?.get("email"),
-          role: event.get("organizer")?.get("role"),
-          createdAt: event.get("organizer")?.get("createdAt"),
-          updatedAt: event.get("organizer")?.get("updatedAt"),
-        },
-        createdAt: event.get("createdAt"),
-        updatedAt: event.get("updatedAt"),
-      }));
+      console.log("Events loaded successfully:", results.length);
+
+      const eventData = results.map((event) => {
+        const organizer = event.get("organizer");
+
+        // Handle cases where organizer data might not be accessible due to ACL
+        const organizerData = organizer
+          ? {
+              objectId: organizer.id || "",
+              username: organizer.get("username") || "Event Organizer",
+              email: organizer.get("email") || "",
+              role: organizer.get("role") || "Organizer",
+              createdAt: organizer.get("createdAt") || new Date(),
+              updatedAt: organizer.get("updatedAt"),
+            }
+          : {
+              objectId: "unknown",
+              username: "Event Organizer",
+              email: "",
+              role: "Organizer" as const,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            };
+
+        return {
+          objectId: event.id || "",
+          title: event.get("title"),
+          location: event.get("location"),
+          date: event.get("date"),
+          attendees: event.get("attendees") || [],
+          organizer: organizerData,
+          createdAt: event.get("createdAt"),
+          updatedAt: event.get("updatedAt"),
+        };
+      });
 
       setEvents(eventData);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to load events";
-      setError(errorMessage);
       console.error("Load events error:", err);
+
+      // Check if it's a network/server error
+      let errorMessage = "Failed to load events";
+      if (err instanceof Error) {
+        if (
+          err.message.includes("Bad Gateway") ||
+          err.message.includes("invalid JSON")
+        ) {
+          errorMessage =
+            "Server temporarily unavailable. Please refresh the page or try again in a moment.";
+        } else if (err.message.includes("Parse configuration")) {
+          errorMessage =
+            "Configuration error. Please check your environment variables.";
+        } else if (err.message.includes("Network")) {
+          errorMessage =
+            "Network error. Please check your internet connection.";
+        } else {
+          errorMessage = err.message;
+        }
+      }
+
+      setError(errorMessage);
     }
   };
 
   const loadUpcomingRegistrations = async () => {
     try {
+      console.log("Loading upcoming registrations...");
       const result = await Parse.Cloud.run("listUpcomingEvents");
+      console.log("Cloud function result:", result);
+
       if (result.success) {
         setUpcomingRegistrations(result.upcomingEvents || []);
+        console.log(
+          "Upcoming registrations loaded:",
+          result.upcomingEvents?.length || 0
+        );
+      } else {
+        console.warn("Cloud function returned error:", result.message);
       }
     } catch (err) {
       console.error("Load upcoming registrations error:", err);
+
+      // Handle network errors gracefully for upcoming registrations
+      if (err instanceof Error) {
+        if (
+          err.message.includes("Bad Gateway") ||
+          err.message.includes("invalid JSON")
+        ) {
+          console.warn(
+            "Server temporarily unavailable for upcoming registrations. Will retry later."
+          );
+        } else {
+          console.error(
+            "Unexpected error loading upcoming registrations:",
+            err.message
+          );
+        }
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCancelRegistration = async (eventId: string) => {
+  const handleCancelRegistration = async (
+    registrationId: string,
+    isRegistrationId: boolean
+  ) => {
     try {
-      const result = await Parse.Cloud.run("cancelEventRegistration", {
-        eventId,
+      console.log(
+        "Attempting to cancel registration for registration:",
+        registrationId
+      );
+
+      setError(""); // Clear any previous errors
+
+      // Try direct object fetching
+      try {
+        const Registration = Parse.Object.extend("Registration");
+        const query = new Parse.Query(Registration);
+        const registration = await query.get(registrationId);
+
+        registration.set("status", "canceled");
+        registration.set("registered", false);
+        await registration.save();
+
+        console.log("Registration cancelled successfully");
+        loadUpcomingRegistrations();
+        return;
+      } catch (directError) {
+        console.error("Direct cancellation failed:", directError);
+        // Fall back to cloud function
+      }
+
+      // Fall back to cloud function
+      console.log("Calling cancelEventRegistration with:", {
+        registrationId,
+        isRegistrationId,
       });
+      const result = await Parse.Cloud.run("cancelEventRegistration", {
+        registrationId,
+        isRegistrationId,
+      });
+
+      console.log("Cancel registration result:", result);
+
       if (result.success) {
+        console.log("Registration cancelled successfully, reloading data...");
         // Reload upcoming registrations
         loadUpcomingRegistrations();
+      } else {
+        console.error("Cancel registration failed:", result.message);
+        setError(result.message || "Failed to cancel registration");
       }
     } catch (err) {
       console.error("Cancel registration error:", err);
@@ -143,6 +247,18 @@ export default function HomePage() {
         {error && (
           <div className="rounded-md bg-red-50 p-4">
             <div className="text-sm text-red-700">{error}</div>
+            <button
+              onClick={() => {
+                setError("");
+                loadEvents();
+                if (user?.role === "Attendee") {
+                  loadUpcomingRegistrations();
+                }
+              }}
+              className="mt-2 text-xs underline text-red-600 hover:text-red-800"
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -175,15 +291,6 @@ export default function HomePage() {
                     key={registration.registrationId}
                     className="hover:shadow-lg transition-shadow"
                   >
-                    {registration.event.eventPosterImage && (
-                      <div className="aspect-video w-full overflow-hidden rounded-t-lg">
-                        <img
-                          src={registration.event.eventPosterImage.url}
-                          alt={registration.event.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
                     <CardHeader>
                       <h3 className="text-lg font-semibold text-gray-900">
                         {registration.event.title}
@@ -205,16 +312,27 @@ export default function HomePage() {
                       <div className="flex items-center text-gray-600">
                         <UserIcon className="h-4 w-4 mr-2" />
                         <span className="text-sm">
-                          Organized by {registration.event.organizer?.username}
+                          Organized by {registration.event.organizer.username}
                         </span>
                       </div>
                       <Button
-                        variant="danger"
+                        variant="outline"
                         size="sm"
+                        onClick={() => {
+                          console.log(
+                            "Cancel button clicked for registration:",
+                            registration
+                          );
+                          console.log(
+                            "Registration ID:",
+                            registration.registrationId
+                          );
+                          handleCancelRegistration(
+                            registration.registrationId,
+                            true
+                          );
+                        }}
                         className="w-full mt-4"
-                        onClick={() =>
-                          handleCancelRegistration(registration.event.objectId)
-                        }
                       >
                         Cancel Registration
                       </Button>
@@ -257,15 +375,6 @@ export default function HomePage() {
                   key={event.objectId}
                   className="hover:shadow-lg transition-shadow"
                 >
-                  {event.eventPosterImage && (
-                    <div className="aspect-video w-full overflow-hidden rounded-t-lg">
-                      <img
-                        src={event.eventPosterImage.url}
-                        alt={event.title}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
                   <CardHeader>
                     <h3 className="text-lg font-semibold text-gray-900">
                       {event.title}

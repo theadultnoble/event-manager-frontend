@@ -35,7 +35,9 @@ export default function EventRegisterPage() {
   }, [eventId]);
 
   const loadEvent = async () => {
+    console.log("=== Event Registration Page Debug ===");
     console.log("Loading event with ID:", eventId);
+    console.log("User:", user);
     console.log("Parse config check:", {
       appId: !!process.env.NEXT_PUBLIC_PARSE_APPLICATION_ID,
       jsKey: !!process.env.NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY,
@@ -57,24 +59,38 @@ export default function EventRegisterPage() {
       const query = new Parse.Query("Event");
       query.include("organizer");
 
+      console.log("About to query event with ID:", eventId);
       const result = await query.get(eventId);
       console.log("Event found:", result);
       console.log("Event attributes:", result.attributes);
       console.log("Organizer data:", result.get("organizer"));
 
-      // Check if organizer exists
+      // Check if organizer exists - if not, create a fallback
       const organizer = result.get("organizer");
+      let organizerData;
+
       if (!organizer) {
-        console.error("Event data:", {
-          id: result.id,
-          title: result.get("title"),
-          location: result.get("location"),
-          date: result.get("date"),
-          allAttributes: result.attributes,
-        });
-        throw new Error(
-          "Event found but organizer data is missing. This might be a data integrity issue."
+        console.warn(
+          "Organizer data not accessible (likely due to ACL restrictions), using fallback"
         );
+        // Create fallback organizer data
+        organizerData = {
+          objectId: "unknown",
+          username: "Event Organizer",
+          email: "",
+          role: "Organizer" as const,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+      } else {
+        organizerData = {
+          objectId: organizer.id || "",
+          username: organizer.get("username") || "Event Organizer",
+          email: organizer.get("email") || "",
+          role: organizer.get("role") || "Organizer",
+          createdAt: organizer.get("createdAt") || new Date(),
+          updatedAt: organizer.get("updatedAt"),
+        };
       }
 
       const eventData: Event = {
@@ -83,27 +99,28 @@ export default function EventRegisterPage() {
         location: result.get("location"),
         date: result.get("date"),
         attendees: result.get("attendees") || [],
-        eventPosterImage: result.get("eventPosterImage"),
-        organizer: {
-          objectId: organizer.id || "",
-          username: organizer.get("username") || "",
-          email: organizer.get("email") || "",
-          role: organizer.get("role") || "Organizer",
-          createdAt: organizer.get("createdAt") || new Date(),
-          updatedAt: organizer.get("updatedAt"),
-        },
+        organizer: organizerData,
         createdAt: result.get("createdAt"),
         updatedAt: result.get("updatedAt"),
       };
 
+      console.log("Processed event data:", eventData);
       setEvent(eventData);
+      console.log("Event state set successfully");
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "Event not found";
       setError(errorMessage);
       console.error("Load event error:", err);
+      console.error(
+        "Error stack:",
+        err instanceof Error ? err.stack : "No stack"
+      );
       console.log("Event ID being queried:", eventId);
+      console.log("Error type:", typeof err);
+      console.log("Error details:", err);
     } finally {
+      console.log("Setting loading to false");
       setLoading(false);
     }
   };
@@ -135,7 +152,15 @@ export default function EventRegisterPage() {
     }
   };
 
+  console.log("=== Render Debug ===");
+  console.log("User:", user);
+  console.log("User role:", user?.role);
+  console.log("Loading:", loading);
+  console.log("Event:", event);
+  console.log("Error:", error);
+
   if (!user || user.role !== "Attendee") {
+    console.log("Showing access denied - User not attendee");
     return (
       <Layout>
         <div className="text-center py-8">
@@ -149,6 +174,7 @@ export default function EventRegisterPage() {
   }
 
   if (loading) {
+    console.log("Showing loading spinner");
     return (
       <Layout>
         <div className="flex items-center justify-center py-8">
@@ -159,6 +185,7 @@ export default function EventRegisterPage() {
   }
 
   if (!event) {
+    console.log("Showing event not found");
     return (
       <Layout>
         <div className="text-center py-8">
@@ -174,6 +201,7 @@ export default function EventRegisterPage() {
     );
   }
 
+  console.log("Showing event registration form");
   const isEventInPast = new Date(event.date) <= new Date();
 
   return (
@@ -187,15 +215,6 @@ export default function EventRegisterPage() {
         </div>
 
         <Card>
-          {event.eventPosterImage && (
-            <div className="aspect-video w-full overflow-hidden rounded-t-lg">
-              <img
-                src={event.eventPosterImage.url}
-                alt={event.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
           <CardHeader>
             <h2 className="text-2xl font-semibold text-gray-900">
               {event.title}
