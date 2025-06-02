@@ -10,6 +10,7 @@ npm-debug.log
 yarn-debug.log
 yarn-error.log
 pnpm-debug.log
+*.log
 
 # Env files (optional — only if you handle secrets another way)
 .env
@@ -23,8 +24,41 @@ pnpm-debug.log
 Thumbs.db
 .vscode
 .idea
+*.swp
+*.swo
 
 # Git
 .git
 .gitignore
+
+# Documentation and README files
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# Testing
+coverage
+.nyc_output
+.coverage
+.pytest_cache
+jest.config.*
+cypress
+cypress.json
+
+# Deployment
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Build tools
+.eslintrc*
+.prettierrc*
+tsconfig.json
+postcss.config.*
+tailwind.config.*
+
+# Scripts that aren't needed in container
+run-docker.sh
+deploy.sh
 
