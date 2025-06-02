@@ -15,7 +15,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const currentUser = Parse.User.current();
     if (currentUser) {
       setUser({
-        objectId: currentUser.id,
+        objectId: currentUser.id || "",
         username: currentUser.get("username") || "",
         email: currentUser.get("email") || "",
         role: currentUser.get("role") || "Attendee",
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const parseUser = await Parse.User.logIn(username, password);
 
       const userData: User = {
-        objectId: parseUser.id,
+        objectId: parseUser.id || "",
         username: parseUser.get("username") || "",
         email: parseUser.get("email") || "",
         role: parseUser.get("role") || "Attendee",

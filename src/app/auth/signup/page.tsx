@@ -28,7 +28,8 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupData & { confirmPassword: string }) => {
     try {
       setError("");
-      const { confirmPassword: _confirmPassword, ...signupData } = data;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { confirmPassword, ...signupData } = data;
       await signup(signupData);
       router.push("/");
     } catch (err) {

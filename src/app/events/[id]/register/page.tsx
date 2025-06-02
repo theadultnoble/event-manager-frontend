@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
@@ -28,13 +28,7 @@ export default function EventRegisterPage() {
   const params = useParams();
   const eventId = params.id as string;
 
-  useEffect(() => {
-    if (eventId) {
-      loadEvent();
-    }
-  }, [eventId]);
-
-  const loadEvent = async () => {
+  const loadEvent = useCallback(async () => {
     console.log("=== Event Registration Page Debug ===");
     console.log("Loading event with ID:", eventId);
     console.log("User:", user);
@@ -123,7 +117,13 @@ export default function EventRegisterPage() {
       console.log("Setting loading to false");
       setLoading(false);
     }
-  };
+  }, [eventId, user]);
+
+  useEffect(() => {
+    if (eventId) {
+      loadEvent();
+    }
+  }, [eventId, loadEvent]);
 
   const handleRegister = async () => {
     if (!user || !event) return;
