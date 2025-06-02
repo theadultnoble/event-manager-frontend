@@ -12,17 +12,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // Check if user is already logged in
-    const currentUser = Parse.User.current();
-    if (currentUser) {
-      setUser({
-        objectId: currentUser.id || "",
-        username: currentUser.get("username") || "",
-        email: currentUser.get("email") || "",
-        role: currentUser.get("role") || "Attendee",
-        name: currentUser.get("name"),
-        createdAt: currentUser.get("createdAt"),
-        updatedAt: currentUser.get("updatedAt"),
-      });
+    try {
+      const currentUser = Parse.User.current();
+      if (currentUser) {
+        setUser({
+          objectId: currentUser.id || "",
+          username: currentUser.get("username") || "",
+          email: currentUser.get("email") || "",
+          role: currentUser.get("role") || "Attendee",
+          name: currentUser.get("name"),
+          createdAt: currentUser.get("createdAt"),
+          updatedAt: currentUser.get("updatedAt"),
+        });
+      }
+    } catch (error) {
+      console.error("Error checking current user:", error);
     }
     setIsLoading(false);
   }, []);
