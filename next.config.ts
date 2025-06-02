@@ -1,11 +1,9 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   // Enable standalone output for Docker
   output: "standalone",
-
-  // Optimize for production
-  swcMinify: true,
 
   // Compress responses
   compress: true,
@@ -25,6 +23,15 @@ const nextConfig: NextConfig = {
   typescript: {
     // Disable type checking during builds to save memory
     ignoreBuildErrors: true,
+  },
+
+  // Webpack configuration to handle path aliases
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@": path.resolve(__dirname, "./src"),
+    };
+    return config;
   },
 };
 

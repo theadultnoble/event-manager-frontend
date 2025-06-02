@@ -55,8 +55,6 @@ docker-compose*
 .eslintrc*
 .prettierrc*
 tsconfig.json
-postcss.config.*
-tailwind.config.*
 
 # Scripts that aren't needed in container
 run-docker.sh

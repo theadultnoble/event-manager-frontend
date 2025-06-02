@@ -30,15 +30,6 @@ export default function CreateEventPage() {
       setConnectionStatus("Testing connection...");
       console.log("Testing Parse connection...");
 
-      // Check environment variables
-      if (
-        !process.env.NEXT_PUBLIC_PARSE_APPLICATION_ID ||
-        !process.env.NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY ||
-        !process.env.NEXT_PUBLIC_PARSE_SERVER_URL
-      ) {
-        throw new Error("Environment variables not configured");
-      }
-
       // Test basic Parse query
       const query = new Parse.Query("_User");
       query.limit(1);
@@ -63,17 +54,6 @@ export default function CreateEventPage() {
 
       if (!user) {
         throw new Error("User not authenticated");
-      }
-
-      // Check Parse configuration
-      if (
-        !process.env.NEXT_PUBLIC_PARSE_APPLICATION_ID ||
-        !process.env.NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY ||
-        !process.env.NEXT_PUBLIC_PARSE_SERVER_URL
-      ) {
-        throw new Error(
-          "Parse configuration missing. Please check your environment variables."
-        );
       }
 
       // Test Parse connection first
@@ -108,10 +88,7 @@ export default function CreateEventPage() {
       // Provide more specific error messages
       let errorMessage = "Failed to create event";
       if (err instanceof Error) {
-        if (err.message.includes("Parse configuration")) {
-          errorMessage =
-            "Parse Server configuration is missing. Please check your environment variables.";
-        } else if (err.message.includes("connection")) {
+        if (err.message.includes("connection")) {
           errorMessage =
             "Cannot connect to Parse Server. Please check your server URL and credentials.";
         } else {

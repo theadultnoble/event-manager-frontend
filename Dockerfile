@@ -10,26 +10,19 @@ ENV NODE_OPTIONS="--max-old-space-size=1024"
 # Copy package files first for better caching
 COPY package.json package-lock.json ./
 
-# Install dependencies with cache cleaning
-RUN npm ci --only=production --silent && \
+# Install ALL dependencies (including dev) for building
+RUN npm ci --silent && \
     npm cache clean --force
 
-# Copy source code
+# Copy all necessary files for build
 COPY . .
 
 # Set build environment variables
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_FONT_GOOGLE_SKIP_DOWNLOAD=1
-ARG NEXT_PUBLIC_PARSE_APPLICATION_ID=""
-ARG NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY=""
-ARG NEXT_PUBLIC_PARSE_SERVER_URL=""
-ENV NEXT_PUBLIC_PARSE_APPLICATION_ID=$NEXT_PUBLIC_PARSE_APPLICATION_ID
-ENV NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY=$NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY
-ENV NEXT_PUBLIC_PARSE_SERVER_URL=$NEXT_PUBLIC_PARSE_SERVER_URL
 
 # Build the application
-RUN npm run build && \
-    npm prune --production
+RUN npm run build
 
 # Stage 2: Production runtime
 FROM node:20-alpine AS runtime
@@ -41,11 +34,17 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Copy only necessary files from builder
-COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+# Copy package.json for node_modules reference
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./
+
+# Copy the standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Copy static files
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Copy public directory
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Switch to non-root user
 USER nextjs
@@ -57,10 +56,7 @@ EXPOSE 3000
 ENV PORT=3000
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/api/health || exit 1
+ENV HOSTNAME="0.0.0.0"
 
 # Start the application
 CMD ["node", "server.js"]

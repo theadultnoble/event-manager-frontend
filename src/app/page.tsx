@@ -36,17 +36,6 @@ export default function HomePage() {
 
   const loadEvents = async () => {
     try {
-      // Check if Parse is properly configured
-      if (
-        !process.env.NEXT_PUBLIC_PARSE_APPLICATION_ID ||
-        !process.env.NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY ||
-        !process.env.NEXT_PUBLIC_PARSE_SERVER_URL
-      ) {
-        throw new Error(
-          "Parse configuration missing. Please check your environment variables."
-        );
-      }
-
       console.log("Loading events...");
       const query = new Parse.Query("Event");
       query.include("organizer");
@@ -102,9 +91,6 @@ export default function HomePage() {
         ) {
           errorMessage =
             "Server temporarily unavailable. Please refresh the page or try again in a moment.";
-        } else if (err.message.includes("Parse configuration")) {
-          errorMessage =
-            "Configuration error. Please check your environment variables.";
         } else if (err.message.includes("Network")) {
           errorMessage =
             "Network error. Please check your internet connection.";

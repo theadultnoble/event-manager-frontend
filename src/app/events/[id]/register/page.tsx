@@ -32,24 +32,8 @@ export default function EventRegisterPage() {
     console.log("=== Event Registration Page Debug ===");
     console.log("Loading event with ID:", eventId);
     console.log("User:", user);
-    console.log("Parse config check:", {
-      appId: !!process.env.NEXT_PUBLIC_PARSE_APPLICATION_ID,
-      jsKey: !!process.env.NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY,
-      serverUrl: !!process.env.NEXT_PUBLIC_PARSE_SERVER_URL,
-    });
 
     try {
-      // Check if Parse is properly configured
-      if (
-        !process.env.NEXT_PUBLIC_PARSE_APPLICATION_ID ||
-        !process.env.NEXT_PUBLIC_PARSE_JAVASCRIPT_KEY ||
-        !process.env.NEXT_PUBLIC_PARSE_SERVER_URL
-      ) {
-        throw new Error(
-          "Parse configuration missing. Please check your environment variables."
-        );
-      }
-
       const query = new Parse.Query("Event");
       query.include("organizer");
 
